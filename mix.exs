@@ -1,4 +1,4 @@
-defmodule PeerageEc2.Mixfile do
+defmodule Peerage.Via.Ec2.Mixfile do
   use Mix.Project
 
   def project do
@@ -7,8 +7,15 @@ defmodule PeerageEc2.Mixfile do
       version: "0.1.0",
       elixir: "~> 1.5",
       start_permanent: Mix.env == :prod,
-      deps: deps()
+      deps: deps(),
+      description: description(),
     ]
+  end
+
+  def description do
+    """
+    A Peerage provider for easy clustering on AWS EC2 and Elastic Beanstalk
+    """
   end
 
   # Run "mix help compile.app" to learn about applications.
@@ -21,8 +28,9 @@ defmodule PeerageEc2.Mixfile do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      # {:dep_from_hexpm, "~> 0.3.0"},
-      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"},
+      {:ex_aws, "~> 1.1"},
+      {:hackney, "~> 1.10"},
+      {:sweet_xml, "~> 0.6.5"},
     ]
   end
 end
