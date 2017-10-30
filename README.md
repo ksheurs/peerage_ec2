@@ -20,7 +20,7 @@ Add `peerage` and `peerage_ec2` to your list of dependencies in mix.exs, and sta
     def deps do
       [
       	{:peerage, "~> 1.0.2"},
-      	{:peerage_ec2, "~> 0.1.0"},
+      	{:peerage_ec2, "~> 1.0.0"},
       ]
     end
 ```
