@@ -4,18 +4,14 @@ defmodule Peerage.Via.Ec2.Mixfile do
   def project do
     [
       app: :peerage_ec2,
-      version: "0.1.1",
+      version: "1.0.0",
       elixir: "~> 1.5",
       start_permanent: Mix.env == :prod,
       deps: deps(),
+      name: "Peerage EC2",
       description: description(),
+      source_url: "https://github.com/BoweryFarming/peerage_ec2"
     ]
-  end
-
-  def description do
-    """
-    A Peerage provider for easy clustering on AWS EC2 and Elastic Beanstalk
-    """
   end
 
   # Run "mix help compile.app" to learn about applications.
@@ -33,5 +29,18 @@ defmodule Peerage.Via.Ec2.Mixfile do
       {:hackney, "~> 1.10"},
       {:sweet_xml, "~> 0.6.5"},
     ]
+  end
+
+  def package do
+    [maintainers: ["Kevin Sheurs", "Dylan Fareed", "Henry Sztul"],
+     licenses: ["MIT"],
+     links: %{"GitHub" => "https://github.com/BoweryFarming/peerage_ec2",
+              "Docs" => "https://hexdocs.pm/peerage_ec2/readme.html"}]
+  end
+
+  def description do
+    """
+    A Peerage provider for easy clustering on AWS EC2 and Elastic Beanstalk
+    """
   end
 end
