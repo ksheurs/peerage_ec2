@@ -12,7 +12,8 @@ defmodule Peerage.Via.Ec2.Mixfile do
      description: description(),
      source_url: "https://github.com/BoweryFarming/peerage_ec2",
      homepage_url: "https://github.com/BoweryFarming/peerage_ec2",
-     docs: [main: "readme", extras: ["README.md"]]]
+     docs: [main: "readme", extras: ["README.md"]],
+     elixirc_paths: elixirc_paths(Mix.env)]
   end
 
   # Run "mix help compile.app" to learn about applications.
@@ -24,7 +25,8 @@ defmodule Peerage.Via.Ec2.Mixfile do
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
-    [{:peerage, "~> 1.0"}] # Easy Elixir clusters, pluggable discovery
+    [{:peerage, "~> 1.0"}, # Easy Elixir clusters, pluggable discovery
+     {:mock, "~> 0.2.0", only: :test}] # A mocking library for the Elixir language
   end
 
   def package do
@@ -40,4 +42,7 @@ defmodule Peerage.Via.Ec2.Mixfile do
     A Peerage provider for easy clustering on AWS EC2 and Elastic Beanstalk
     """
   end
+
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 end

@@ -34,7 +34,6 @@ defmodule Peerage.Via.Ec2 do
     # we'll peform a signed/authenticated request to Amazon's EC2
     # DescribeInstances API to retrieve the name of the `cluster`
     # of instances we've tagged.
-
     request_uri =
       %{}
       |> Map.put("Filter.1.Name", "instance-id")

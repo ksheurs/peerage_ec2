@@ -3,6 +3,6 @@
 use Mix.Config
 
 config :peerage, via: Peerage.Via.Ec2
-config :peerage_ec2, aws_access_key_id: System.get_env("AWS_ACCESS_KEY_ID"),
-                     aws_secret_access_key: System.get_env("AWS_SECRET_ACCESS_KEY"),
+config :peerage_ec2, aws_access_key_id: "example",
+                     aws_secret_access_key: "key",
                      tags: [{:cluster, "cluster"}, {:service, "service"}]

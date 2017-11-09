@@ -4,6 +4,18 @@ defmodule Peerage.Via.Ec2.SignedUrl do
   for GET requests to retrieve data about EC2 services from AWS.
   """
 
+  defmodule RequestTime do
+    @moduledoc false
+
+    @doc """
+    Returns the current UTC DateTime as NaiveDateTime
+    """
+    def now() do
+      DateTime.utc_now
+      |> DateTime.to_naive
+    end
+  end
+
   @service "ec2"
 
   @doc """
@@ -15,7 +27,7 @@ defmodule Peerage.Via.Ec2.SignedUrl do
     uri = URI.parse(url)
     headers = %{"host" => uri.host}
 
-    request_time = DateTime.utc_now |> DateTime.to_naive
+    request_time = RequestTime.now()
     amz_date = format_time(request_time)
     date = format_date(request_time)
 

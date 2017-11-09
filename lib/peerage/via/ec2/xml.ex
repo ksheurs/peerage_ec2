@@ -6,7 +6,6 @@ defmodule Peerage.Via.Ec2.Xml do
   http://erlang.org/doc/man/xmerl.html
   """
   require Record
-  Record.defrecord :xmlAttribute, Record.extract(:xmlAttribute, from_lib: "xmerl/include/xmerl.hrl")
   Record.defrecord :xmlText, Record.extract(:xmlText, from_lib: "xmerl/include/xmerl.hrl")
 
   @doc """
