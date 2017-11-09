@@ -2,6 +2,7 @@ defmodule Peerage.Via.Ec2 do
   @moduledoc """
   A Peerage provider for easy clustering on AWS EC2 and Elastic Beanstalk.
   """
+  @behaviour Peerage.Provider
 
   alias Peerage.Via.Ec2.{SignedUrl, Xml}
 
