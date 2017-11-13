@@ -26,6 +26,7 @@ defmodule Peerage.Via.Ec2.Mixfile do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [{:peerage, "~> 1.0"}, # Easy Elixir clusters, pluggable discovery
+     {:ex_doc, "~> 0.18.1", only: :dev}, # ExDoc is a documentation generation tool for Elixir
      {:mock, "~> 0.2.0", only: :test}] # A mocking library for the Elixir language
   end
 
