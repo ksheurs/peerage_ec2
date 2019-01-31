@@ -30,6 +30,10 @@ defmodule Peerage.Via.Ec2.Mixfile do
     # Easy Elixir clusters, pluggable discovery
     [
       {:peerage, "~> 1.0"},
+      # Deps for ex_aws - an aws client
+      {:ex_aws, "~> 1.1"},
+      {:hackney, "~> 1.9"},
+      {:sweet_xml, "~> 0.6"},
       # ExDoc is a documentation generation tool for Elixir
       {:ex_doc, "~> 0.18.1", only: :dev},
       # A mocking library for the Elixir language
