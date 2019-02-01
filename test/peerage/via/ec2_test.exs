@@ -3,7 +3,6 @@ defmodule Peerage.Via.Ec2Test do
 
   import Mock
   alias Peerage.Via.Ec2
-  # alias Peerage.Via.Ec2.SignedUrl.RequestTime
 
   @instance_id "my-instance-id"
 
