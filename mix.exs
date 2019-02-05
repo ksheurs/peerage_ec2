@@ -4,7 +4,7 @@ defmodule Peerage.Via.Ec2.Mixfile do
   def project do
     [
       app: :peerage_ec2,
-      version: "1.3.0",
+      version: "2.0.0",
       elixir: "~> 1.5",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
