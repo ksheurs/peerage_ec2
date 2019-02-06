@@ -5,6 +5,7 @@ defmodule Peerage.Via.Ec2 do
   @behaviour Peerage.Provider
 
   alias Peerage.Via.Ec2.Xml
+  require Logger
 
   @doc """
   Periodically polls the metadata and EC2 API's for other nodes in the same "cluster."
@@ -24,8 +25,12 @@ defmodule Peerage.Via.Ec2 do
     metadata_api = 'http://169.254.169.254/latest/meta-data/instance-id'
 
     case request(metadata_api) do
-      {:ok, {{_, 200, _}, _headers, body}} -> to_string(body)
-      _ -> :error
+      {:ok, {{_, 200, _}, _headers, body}} ->
+        to_string(body)
+
+      error ->
+        Logger.error("Peerage.Via.Ec2 hit error in fetch_instance_id: #{inspect(error)}")
+        :error
     end
   end
 
@@ -47,7 +52,8 @@ defmodule Peerage.Via.Ec2 do
         |> Xml.first("//tagSet/item[key='#{tag_name(:cluster)}']/value")
         |> Xml.text()
 
-      _ ->
+      error ->
+        Logger.error("Peerage.Via.Ec2 hit error in fetch_cluster_name: #{inspect(error)}")
         :error
     end
   end
@@ -81,7 +87,8 @@ defmodule Peerage.Via.Ec2 do
           %{host: host, name: service}
         end)
 
-      _ ->
+      error ->
+        Logger.error("Peerage.Via.Ec2 hit error in fetch_running_services: #{inspect(error)}")
         :error
     end
   end
