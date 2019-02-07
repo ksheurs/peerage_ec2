@@ -4,7 +4,8 @@ defmodule Peerage.Via.Ec2 do
   """
   @behaviour Peerage.Provider
 
-  alias Peerage.Via.Ec2.{SignedUrl, Xml}
+  alias Peerage.Via.Ec2.Xml
+  require Logger
 
   @doc """
   Periodically polls the metadata and EC2 API's for other nodes in the same "cluster."
@@ -24,8 +25,12 @@ defmodule Peerage.Via.Ec2 do
     metadata_api = 'http://169.254.169.254/latest/meta-data/instance-id'
 
     case request(metadata_api) do
-      {:ok, {{_, 200, _}, _headers, body}} -> to_string(body)
-      _ -> :error
+      {:ok, {{_, 200, _}, _headers, body}} ->
+        to_string(body)
+
+      error ->
+        Logger.error("Peerage.Via.Ec2 hit error in fetch_instance_id: #{inspect(error)}")
+        :error
     end
   end
 
@@ -36,22 +41,19 @@ defmodule Peerage.Via.Ec2 do
     # we'll peform a signed/authenticated request to Amazon's EC2
     # DescribeInstances API to retrieve the name of the `cluster`
     # of instances we've tagged.
-    request_uri =
-      %{}
-      |> Map.put("Filter.1.Name", "instance-id")
-      |> Map.put("Filter.1.Value.1", instance_id)
-      |> describe_endpoint()
-      |> SignedUrl.build()
-      |> to_charlist()
+    query = ExAws.EC2.describe_instances(filters: ["instance-id": [instance_id]])
+    response = ExAws.request(query)
 
-    case request(request_uri) do
-      {:ok, {{_, 200, _}, _headers, body}} ->
+    case response do
+      {:ok, %{status_code: 200, body: body}} ->
         body
+        |> to_charlist
         |> Xml.parse()
         |> Xml.first("//tagSet/item[key='#{tag_name(:cluster)}']/value")
         |> Xml.text()
 
-      _ ->
+      error ->
+        Logger.error("Peerage.Via.Ec2 hit error in fetch_cluster_name: #{inspect(error)}")
         :error
     end
   end
@@ -68,19 +70,16 @@ defmodule Peerage.Via.Ec2 do
     # a running EC2 service.
     #
     # AWS Documentation: http://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceState.html
-    request_uri =
-      %{}
-      |> Map.put("Filter.1.Name", "instance-state-code")
-      |> Map.put("Filter.1.Value.1", "16")
-      |> Map.put("Filter.2.Name", "tag:#{tag_name(:cluster)}")
-      |> Map.put("Filter.2.Value.1", cluster_name)
-      |> describe_endpoint()
-      |> SignedUrl.build()
-      |> to_charlist()
+    query =
+      ExAws.EC2.describe_instances(
+        filters: ["instance-state-code": ["16"], "tag:#{tag_name(:cluster)}": [cluster_name]]
+      )
 
-    case request(request_uri) do
-      {:ok, {{_, 200, _}, _headers, body}} ->
-        instances = Xml.parse(body)
+    response = ExAws.request(query)
+
+    case response do
+      {:ok, %{status_code: 200, body: body}} ->
+        instances = body |> to_charlist |> Xml.parse()
 
         Enum.map(Xml.all(instances, "//instancesSet/item"), fn node ->
           host = Xml.first(node, "//privateIpAddress") |> Xml.text()
@@ -88,7 +87,8 @@ defmodule Peerage.Via.Ec2 do
           %{host: host, name: service}
         end)
 
-      _ ->
+      error ->
+        Logger.error("Peerage.Via.Ec2 hit error in fetch_running_services: #{inspect(error)}")
         :error
     end
   end

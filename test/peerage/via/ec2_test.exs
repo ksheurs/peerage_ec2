@@ -1,53 +1,79 @@
 defmodule Peerage.Via.Ec2Test do
   use ExUnit.Case, async: false
+  import ExUnit.CaptureLog
 
   import Mock
   alias Peerage.Via.Ec2
-  alias Peerage.Via.Ec2.SignedUrl.RequestTime
 
-  @now ~N[1980-10-17 01:23:45]
-  @instance_id 'my-instance-id'
+  @instance_id "my-instance-id"
 
   setup do
     metadata_api_url = 'http://169.254.169.254/latest/meta-data/instance-id'
 
-    cluster_name_url =
-      'https://ec2.amazonaws.com/?Action=DescribeInstances&Filter.1.Name=instance-id&Filter.1.Value.1=my-instance-id&Version=2016-11-15&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=example%2F19801017%2Fus-east-1%2Fec2%2Faws4_request&X-Amz-Date=19801017T012345Z&X-Amz-Expires=86400&X-Amz-Signature=fd6f96b448eca8bc766772556a99a83f4515a2486ee2946d0e1ac9c49f6ae672&X-Amz-SignedHeaders=host'
+    cluster_name_response = File.read!("./test/support/fixtures/fetch_cluster_name.xml")
 
-    running_services_url =
-      'https://ec2.amazonaws.com/?Action=DescribeInstances&Filter.1.Name=instance-state-code&Filter.1.Value.1=16&Filter.2.Name=tag%3Acluster&Filter.2.Value.1=staging&Version=2016-11-15&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=example%2F19801017%2Fus-east-1%2Fec2%2Faws4_request&X-Amz-Date=19801017T012345Z&X-Amz-Expires=86400&X-Amz-Signature=2593cc39b442ec5bf04bc91010a4a809d3b04b5ed772a427c44c1efcac3e094f&X-Amz-SignedHeaders=host'
+    running_services_response = File.read!("./test/support/fixtures/fetch_running_services.xml")
 
-    cluster_name_response =
-      File.read!("./test/support/fixtures/fetch_cluster_name.xml") |> to_charlist
+    get_cluster_name_query = %ExAws.Operation.Query{
+      action: :describe_instances,
+      params: %{
+        "Action" => "DescribeInstances",
+        "Filter.1.Name" => "instance-id",
+        "Filter.1.Value.1" => "my-instance-id",
+        "Version" => "2016-11-15"
+      },
+      path: "/",
+      parser: &ExAws.Utils.identity/2,
+      service: :ec2
+    }
 
-    running_services_response =
-      File.read!("./test/support/fixtures/fetch_running_services.xml") |> to_charlist
+    get_running_instances_query = %ExAws.Operation.Query{
+      action: :describe_instances,
+      params: %{
+        "Action" => "DescribeInstances",
+        "Filter.1.Name" => "instance-state-code",
+        "Filter.1.Value.1" => "16",
+        "Filter.2.Name" => "tag:cluster",
+        "Filter.2.Value.1" => "staging",
+        "Version" => "2016-11-15"
+      },
+      parser: &ExAws.Utils.identity/2,
+      path: "/",
+      service: :ec2
+    }
 
     {:ok,
+     get_cluster_name_query: get_cluster_name_query,
+     get_running_instances_query: get_running_instances_query,
      metadata_api_url: metadata_api_url,
-     cluster_name_url: cluster_name_url,
-     running_services_url: running_services_url,
      cluster_name_response: cluster_name_response,
      running_services_response: running_services_response}
   end
 
   describe "poll/0" do
     test "returns a list of instances from EC2", %{
+      get_cluster_name_query: get_cluster_name_query,
+      get_running_instances_query: get_running_instances_query,
       metadata_api_url: metadata_api_url,
-      cluster_name_url: cluster_name_url,
-      running_services_url: running_services_url,
       cluster_name_response: cluster_name_response,
       running_services_response: running_services_response
     } do
       with_mocks([
-        {RequestTime, [], [now: fn -> @now end]},
+        {ExAws, [],
+         [
+           request: fn
+             ^get_cluster_name_query ->
+               {:ok, %{status_code: 200, body: cluster_name_response}}
+
+             ^get_running_instances_query ->
+               {:ok, %{status_code: 200, body: running_services_response}}
+           end
+         ]},
         {:httpc, [],
          [
            request: fn :get, {url, _}, _, _ ->
              case url do
                ^metadata_api_url -> successful_response(@instance_id)
-               ^cluster_name_url -> successful_response(cluster_name_response)
-               ^running_services_url -> successful_response(running_services_response)
              end
            end
          ]}
@@ -60,25 +86,39 @@ defmodule Peerage.Via.Ec2Test do
       metadata_api_url: metadata_api_url
     } do
       with_mocks([
-        {RequestTime, [], [now: fn -> @now end]},
         {:httpc, [], [request: fn :get, {^metadata_api_url, _}, _, _ -> failed_response() end]}
       ]) do
         assert Ec2.poll() == []
       end
     end
 
-    test "returns an empty list when cluster name request fails", %{
-      metadata_api_url: metadata_api_url,
-      cluster_name_url: cluster_name_url
+    test "logs error when metadata request fails", %{
+      metadata_api_url: metadata_api_url
     } do
       with_mocks([
-        {RequestTime, [], [now: fn -> @now end]},
+        {:httpc, [], [request: fn :get, {^metadata_api_url, _}, _, _ -> failed_response() end]}
+      ]) do
+        captured_logs =
+          capture_log([level: :error], fn ->
+            assert Ec2.poll() == []
+          end)
+
+        assert captured_logs =~ "[error] Peerage.Via.Ec2 hit error in fetch_instance_id:"
+      end
+    end
+
+    test "returns an empty list when cluster name request fails", %{
+      metadata_api_url: metadata_api_url,
+      get_cluster_name_query: get_cluster_name_query
+    } do
+      with_mocks([
+        {ExAws, [],
+         [request: fn ^get_cluster_name_query -> {:ok, %{status_code: 403, body: ""}} end]},
         {:httpc, [],
          [
            request: fn :get, {url, _}, _, _ ->
              case url do
                ^metadata_api_url -> successful_response(@instance_id)
-               ^cluster_name_url -> failed_response()
              end
            end
          ]}
@@ -87,26 +127,87 @@ defmodule Peerage.Via.Ec2Test do
       end
     end
 
-    test "returns an empty list when running services request fails", %{
+    test "logs error when cluster name request fails", %{
       metadata_api_url: metadata_api_url,
-      cluster_name_url: cluster_name_url,
-      running_services_url: running_services_url,
-      cluster_name_response: cluster_name_response
+      get_cluster_name_query: get_cluster_name_query
     } do
       with_mocks([
-        {RequestTime, [], [now: fn -> @now end]},
+        {ExAws, [],
+         [request: fn ^get_cluster_name_query -> {:ok, %{status_code: 403, body: ""}} end]},
         {:httpc, [],
          [
            request: fn :get, {url, _}, _, _ ->
              case url do
                ^metadata_api_url -> successful_response(@instance_id)
-               ^cluster_name_url -> successful_response(cluster_name_response)
-               ^running_services_url -> failed_response()
+             end
+           end
+         ]}
+      ]) do
+        captured_logs =
+          capture_log([level: :error], fn ->
+            assert Ec2.poll() == []
+          end)
+
+        assert captured_logs =~ "[error] Peerage.Via.Ec2 hit error in fetch_cluster_name:"
+      end
+    end
+
+    test "returns an empty list when running services request fails", %{
+      metadata_api_url: metadata_api_url,
+      get_cluster_name_query: get_cluster_name_query,
+      get_running_instances_query: get_running_instances_query,
+      cluster_name_response: cluster_name_response
+    } do
+      with_mocks([
+        {ExAws, [],
+         [
+           request: fn
+             ^get_cluster_name_query -> {:ok, %{status_code: 200, body: cluster_name_response}}
+             ^get_running_instances_query -> {:ok, %{status_code: 403, body: ""}}
+           end
+         ]},
+        {:httpc, [],
+         [
+           request: fn :get, {url, _}, _, _ ->
+             case url do
+               ^metadata_api_url -> successful_response(@instance_id)
              end
            end
          ]}
       ]) do
         assert Ec2.poll() == []
+      end
+    end
+
+    test "logs error when running services request fails", %{
+      metadata_api_url: metadata_api_url,
+      get_cluster_name_query: get_cluster_name_query,
+      get_running_instances_query: get_running_instances_query,
+      cluster_name_response: cluster_name_response
+    } do
+      with_mocks([
+        {ExAws, [],
+         [
+           request: fn
+             ^get_cluster_name_query -> {:ok, %{status_code: 200, body: cluster_name_response}}
+             ^get_running_instances_query -> {:ok, %{status_code: 403, body: ""}}
+           end
+         ]},
+        {:httpc, [],
+         [
+           request: fn :get, {url, _}, _, _ ->
+             case url do
+               ^metadata_api_url -> successful_response(@instance_id)
+             end
+           end
+         ]}
+      ]) do
+        captured_logs =
+          capture_log([level: :error], fn ->
+            assert Ec2.poll() == []
+          end)
+
+        assert captured_logs =~ "[error] Peerage.Via.Ec2 hit error in fetch_running_services:"
       end
     end
   end
