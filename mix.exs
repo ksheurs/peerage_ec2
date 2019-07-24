@@ -31,7 +31,8 @@ defmodule Peerage.Via.Ec2.Mixfile do
     [
       {:peerage, "~> 1.0"},
       # Deps for ex_aws - an aws client
-      {:ex_aws, "~> 1.1"},
+      {:ex_aws, "~> 2.1"},
+      {:ex_aws_ec2, "~> 2.0"},
       {:hackney, "~> 1.9"},
       {:sweet_xml, "~> 0.6"},
       # ExDoc is a documentation generation tool for Elixir
